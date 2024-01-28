@@ -8,10 +8,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <memory.h>
-#include <unistd.h>
-#include <fcntl.h>
-#define int long long
+#include <string.h>
+//#include <memory.h>
+//#include <unistd.h>
+//#include <fcntl.h>
+//#define int long long
 
 char *p, *lp, // current position in source code
      *data;   // data/bss pointer
@@ -59,7 +60,7 @@ void next()
           printf("%8.4s", &"LEA ,IMM ,JMP ,JSR ,BZ  ,BNZ ,ENT ,ADJ ,LEV ,LI  ,LC  ,SI  ,SC  ,PSH ,"
                            "OR  ,XOR ,AND ,EQ  ,NE  ,LT  ,GT  ,LE  ,GE  ,SHL ,SHR ,ADD ,SUB ,MUL ,DIV ,MOD ,"
                            "OPEN,READ,CLOS,PRTF,MALC,FREE,MSET,MCMP,EXIT,"[*++le * 5]);
-          if (*le <= ADJ) printf(" %d\n", *++le); else printf("\n");
+          if (*le <= ADJ) printf(" %d\r\n", *++le); else printf("\r\n");
         }
       }
       ++line;
@@ -135,7 +136,7 @@ void expr(int lev)
 {
   int t, *d;
 
-  if (!tk) { printf("%d: unexpected eof in expression\n", line); exit(-1); }
+  if (!tk) { printf("%d: unexpected eof in expression\r\n", line); exit(-1); }
   else if (tk == Num) { *++e = IMM; *++e = ival; next(); ty = INT; }
   else if (tk == '"') {
     *++e = IMM; *++e = ival; next();
@@ -143,10 +144,10 @@ void expr(int lev)
     data = (char *)((int)data + sizeof(int) & -sizeof(int)); ty = PTR;
   }
   else if (tk == Sizeof) {
-    next(); if (tk == '(') next(); else { printf("%d: open paren expected in sizeof\n", line); exit(-1); }
+    next(); if (tk == '(') next(); else { printf("%d: open paren expected in sizeof\r\n", line); exit(-1); }
     ty = INT; if (tk == Int) next(); else if (tk == Char) { next(); ty = CHAR; }
     while (tk == Mul) { next(); ty = ty + PTR; }
-    if (tk == ')') next(); else { printf("%d: close paren expected in sizeof\n", line); exit(-1); }
+    if (tk == ')') next(); else { printf("%d: close paren expected in sizeof\r\n", line); exit(-1); }
     *++e = IMM; *++e = (ty == CHAR) ? sizeof(char) : sizeof(int);
     ty = INT;
   }
@@ -159,7 +160,7 @@ void expr(int lev)
       next();
       if (d[Class] == Sys) *++e = d[Val];
       else if (d[Class] == Fun) { *++e = JSR; *++e = d[Val]; }
-      else { printf("%d: bad function call\n", line); exit(-1); }
+      else { printf("%d: bad function call\r\n", line); exit(-1); }
       if (t) { *++e = ADJ; *++e = t; }
       ty = d[Type];
     }
@@ -167,7 +168,7 @@ void expr(int lev)
     else {
       if (d[Class] == Loc) { *++e = LEA; *++e = loc - d[Val]; }
       else if (d[Class] == Glo) { *++e = IMM; *++e = d[Val]; }
-      else { printf("%d: undefined variable\n", line); exit(-1); }
+      else { printf("%d: undefined variable\r\n", line); exit(-1); }
       *++e = ((ty = d[Type]) == CHAR) ? LC : LI;
     }
   }
@@ -176,23 +177,23 @@ void expr(int lev)
     if (tk == Int || tk == Char) {
       t = (tk == Int) ? INT : CHAR; next();
       while (tk == Mul) { next(); t = t + PTR; }
-      if (tk == ')') next(); else { printf("%d: bad cast\n", line); exit(-1); }
+      if (tk == ')') next(); else { printf("%d: bad cast\r\n", line); exit(-1); }
       expr(Inc);
       ty = t;
     }
     else {
       expr(Assign);
-      if (tk == ')') next(); else { printf("%d: close paren expected\n", line); exit(-1); }
+      if (tk == ')') next(); else { printf("%d: close paren expected\r\n", line); exit(-1); }
     }
   }
   else if (tk == Mul) {
     next(); expr(Inc);
-    if (ty > INT) ty = ty - PTR; else { printf("%d: bad dereference\n", line); exit(-1); }
+    if (ty > INT) ty = ty - PTR; else { printf("%d: bad dereference\r\n", line); exit(-1); }
     *++e = (ty == CHAR) ? LC : LI;
   }
   else if (tk == And) {
     next(); expr(Inc);
-    if (*e == LC || *e == LI) --e; else { printf("%d: bad address-of\n", line); exit(-1); }
+    if (*e == LC || *e == LI) --e; else { printf("%d: bad address-of\r\n", line); exit(-1); }
     ty = ty + PTR;
   }
   else if (tk == '!') { next(); expr(Inc); *++e = PSH; *++e = IMM; *++e = 0; *++e = EQ; ty = INT; }
@@ -207,26 +208,26 @@ void expr(int lev)
     t = tk; next(); expr(Inc);
     if (*e == LC) { *e = PSH; *++e = LC; }
     else if (*e == LI) { *e = PSH; *++e = LI; }
-    else { printf("%d: bad lvalue in pre-increment\n", line); exit(-1); }
+    else { printf("%d: bad lvalue in pre-increment\r\n", line); exit(-1); }
     *++e = PSH;
     *++e = IMM; *++e = (ty > PTR) ? sizeof(int) : sizeof(char);
     *++e = (t == Inc) ? ADD : SUB;
     *++e = (ty == CHAR) ? SC : SI;
   }
-  else { printf("%d: bad expression\n", line); exit(-1); }
+  else { printf("%d: bad expression\r\n", line); exit(-1); }
 
   while (tk >= lev) { // "precedence climbing" or "Top Down Operator Precedence" method
     t = ty;
     if (tk == Assign) {
       next();
-      if (*e == LC || *e == LI) *e = PSH; else { printf("%d: bad lvalue in assignment\n", line); exit(-1); }
+      if (*e == LC || *e == LI) *e = PSH; else { printf("%d: bad lvalue in assignment\r\n", line); exit(-1); }
       expr(Assign); *++e = ((ty = t) == CHAR) ? SC : SI;
     }
     else if (tk == Cond) {
       next();
       *++e = BZ; d = ++e;
       expr(Assign);
-      if (tk == ':') next(); else { printf("%d: conditional missing colon\n", line); exit(-1); }
+      if (tk == ':') next(); else { printf("%d: conditional missing colon\r\n", line); exit(-1); }
       *d = (int)(e + 3); *++e = JMP; d = ++e;
       expr(Cond);
       *d = (int)(e + 1);
@@ -261,7 +262,7 @@ void expr(int lev)
     else if (tk == Inc || tk == Dec) {
       if (*e == LC) { *e = PSH; *++e = LC; }
       else if (*e == LI) { *e = PSH; *++e = LI; }
-      else { printf("%d: bad lvalue in post-increment\n", line); exit(-1); }
+      else { printf("%d: bad lvalue in post-increment\r\n", line); exit(-1); }
       *++e = PSH; *++e = IMM; *++e = (ty > PTR) ? sizeof(int) : sizeof(char);
       *++e = (tk == Inc) ? ADD : SUB;
       *++e = (ty == CHAR) ? SC : SI;
@@ -271,13 +272,13 @@ void expr(int lev)
     }
     else if (tk == Brak) {
       next(); *++e = PSH; expr(Assign);
-      if (tk == ']') next(); else { printf("%d: close bracket expected\n", line); exit(-1); }
+      if (tk == ']') next(); else { printf("%d: close bracket expected\r\n", line); exit(-1); }
       if (t > PTR) { *++e = PSH; *++e = IMM; *++e = sizeof(int); *++e = MUL;  }
-      else if (t < PTR) { printf("%d: pointer type expected\n", line); exit(-1); }
+      else if (t < PTR) { printf("%d: pointer type expected\r\n", line); exit(-1); }
       *++e = ADD;
       *++e = ((ty = t - PTR) == CHAR) ? LC : LI;
     }
-    else { printf("%d: compiler error tk=%d\n", line, tk); exit(-1); }
+    else { printf("%d: compiler error tk=%d\r\n", line, tk); exit(-1); }
   }
 }
 
@@ -287,9 +288,9 @@ void stmt()
 
   if (tk == If) {
     next();
-    if (tk == '(') next(); else { printf("%d: open paren expected\n", line); exit(-1); }
+    if (tk == '(') next(); else { printf("%d: open paren expected\r\n", line); exit(-1); }
     expr(Assign);
-    if (tk == ')') next(); else { printf("%d: close paren expected\n", line); exit(-1); }
+    if (tk == ')') next(); else { printf("%d: close paren expected\r\n", line); exit(-1); }
     *++e = BZ; b = ++e;
     stmt();
     if (tk == Else) {
@@ -302,9 +303,9 @@ void stmt()
   else if (tk == While) {
     next();
     a = e + 1;
-    if (tk == '(') next(); else { printf("%d: open paren expected\n", line); exit(-1); }
+    if (tk == '(') next(); else { printf("%d: open paren expected\r\n", line); exit(-1); }
     expr(Assign);
-    if (tk == ')') next(); else { printf("%d: close paren expected\n", line); exit(-1); }
+    if (tk == ')') next(); else { printf("%d: close paren expected\r\n", line); exit(-1); }
     *++e = BZ; b = ++e;
     stmt();
     *++e = JMP; *++e = (int)a;
@@ -314,7 +315,7 @@ void stmt()
     next();
     if (tk != ';') expr(Assign);
     *++e = LEV;
-    if (tk == ';') next(); else { printf("%d: semicolon expected\n", line); exit(-1); }
+    if (tk == ';') next(); else { printf("%d: semicolon expected\r\n", line); exit(-1); }
   }
   else if (tk == '{') {
     next();
@@ -326,7 +327,7 @@ void stmt()
   }
   else {
     expr(Assign);
-    if (tk == ';') next(); else { printf("%d: semicolon expected\n", line); exit(-1); }
+    if (tk == ';') next(); else { printf("%d: semicolon expected\r\n", line); exit(-1); }
   }
 }
 
@@ -339,15 +340,15 @@ int main(int argc, char **argv)
   --argc; ++argv;
   if (argc > 0 && **argv == '-' && (*argv)[1] == 's') { src = 1; --argc; ++argv; }
   if (argc > 0 && **argv == '-' && (*argv)[1] == 'd') { debug = 1; --argc; ++argv; }
-  if (argc < 1) { printf("usage: c4 [-s] [-d] file ...\n"); return -1; }
+  if (argc < 1) { printf("usage: c4 [-s] [-d] file ...\r\n"); return -1; }
 
-  if ((fd = open(*argv, 0)) < 0) { printf("could not open(%s)\n", *argv); return -1; }
+  if ((fd = fopen(*argv, "rb")) < 0) { printf("could not open(%s)\r\n", *argv); return -1; }
 
-  poolsz = 256*1024; // arbitrary size
-  if (!(sym = malloc(poolsz))) { printf("could not malloc(%d) symbol area\n", poolsz); return -1; }
-  if (!(le = e = malloc(poolsz))) { printf("could not malloc(%d) text area\n", poolsz); return -1; }
-  if (!(data = malloc(poolsz))) { printf("could not malloc(%d) data area\n", poolsz); return -1; }
-  if (!(sp = malloc(poolsz))) { printf("could not malloc(%d) stack area\n", poolsz); return -1; }
+  poolsz = 16*1024; // arbitrary size
+  if (!(sym = malloc(poolsz))) { printf("could not malloc(%d) symbol area\r\n", poolsz); return -1; }
+  if (!(le = e = malloc(poolsz))) { printf("could not malloc(%d) text area\r\n", poolsz); return -1; }
+  if (!(data = malloc(poolsz))) { printf("could not malloc(%d) data area\r\n", poolsz); return -1; }
+  if (!(sp = malloc(poolsz))) { printf("could not malloc(%d) stack area\r\n", poolsz); return -1; }
 
   memset(sym,  0, poolsz);
   memset(e,    0, poolsz);
@@ -360,10 +361,12 @@ int main(int argc, char **argv)
   next(); id[Tk] = Char; // handle void type
   next(); idmain = id; // keep track of main
 
-  if (!(lp = p = malloc(poolsz))) { printf("could not malloc(%d) source area\n", poolsz); return -1; }
-  if ((i = read(fd, p, poolsz-1)) <= 0) { printf("read() returned %d\n", i); return -1; }
+  if (!(lp = p = malloc(poolsz))) { printf("could not malloc(%d) source area\r\n", poolsz); return -1; }
+  if ((i = fread(p, 1, poolsz-1, fd)) <= 0) { printf("read() returned %d\r\n", i); return -1; }
   p[i] = 0;
-  close(fd);
+  fclose(fd);
+
+  //printf("source code:\r\n\r\n%s\r\n", p);
 
   // parse declarations
   line = 1;
@@ -379,11 +382,11 @@ int main(int argc, char **argv)
         next();
         i = 0;
         while (tk != '}') {
-          if (tk != Id) { printf("%d: bad enum identifier %d\n", line, tk); return -1; }
+          if (tk != Id) { printf("%d: bad enum identifier %d\r\n", line, tk); return -1; }
           next();
           if (tk == Assign) {
             next();
-            if (tk != Num) { printf("%d: bad enum initializer\n", line); return -1; }
+            if (tk != Num) { printf("%d: bad enum initializer\r\n", line); return -1; }
             i = ival;
             next();
           }
@@ -396,8 +399,8 @@ int main(int argc, char **argv)
     while (tk != ';' && tk != '}') {
       ty = bt;
       while (tk == Mul) { next(); ty = ty + PTR; }
-      if (tk != Id) { printf("%d: bad global declaration\n", line); return -1; }
-      if (id[Class]) { printf("%d: duplicate global definition\n", line); return -1; }
+      if (tk != Id) { printf("%d: bad global declaration\r\n", line); return -1; }
+      if (id[Class]) { printf("%d: duplicate global definition\r\n", line); return -1; }
       next();
       id[Type] = ty;
       if (tk == '(') { // function
@@ -409,8 +412,8 @@ int main(int argc, char **argv)
           if (tk == Int) next();
           else if (tk == Char) { next(); ty = CHAR; }
           while (tk == Mul) { next(); ty = ty + PTR; }
-          if (tk != Id) { printf("%d: bad parameter declaration\n", line); return -1; }
-          if (id[Class] == Loc) { printf("%d: duplicate parameter definition\n", line); return -1; }
+          if (tk != Id) { printf("%d: bad parameter declaration\r\n", line); return -1; }
+          if (id[Class] == Loc) { printf("%d: duplicate parameter definition\r\n", line); return -1; }
           id[HClass] = id[Class]; id[Class] = Loc;
           id[HType]  = id[Type];  id[Type] = ty;
           id[HVal]   = id[Val];   id[Val] = i++;
@@ -418,7 +421,7 @@ int main(int argc, char **argv)
           if (tk == ',') next();
         }
         next();
-        if (tk != '{') { printf("%d: bad function definition\n", line); return -1; }
+        if (tk != '{') { printf("%d: bad function definition\r\n", line); return -1; }
         loc = ++i;
         next();
         while (tk == Int || tk == Char) {
@@ -427,8 +430,8 @@ int main(int argc, char **argv)
           while (tk != ';') {
             ty = bt;
             while (tk == Mul) { next(); ty = ty + PTR; }
-            if (tk != Id) { printf("%d: bad local declaration\n", line); return -1; }
-            if (id[Class] == Loc) { printf("%d: duplicate local definition\n", line); return -1; }
+            if (tk != Id) { printf("%d: bad local declaration\r\n", line); return -1; }
+            if (id[Class] == Loc) { printf("%d: duplicate local definition\r\n", line); return -1; }
             id[HClass] = id[Class]; id[Class] = Loc;
             id[HType]  = id[Type];  id[Type] = ty;
             id[HVal]   = id[Val];   id[Val] = ++i;
@@ -460,7 +463,7 @@ int main(int argc, char **argv)
     next();
   }
 
-  if (!(pc = (int *)idmain[Val])) { printf("main() not defined\n"); return -1; }
+  if (!(pc = (int *)idmain[Val])) { printf("main() not defined\r\n"); return -1; }
   if (src) return 0;
 
   // setup stack
@@ -480,7 +483,7 @@ int main(int argc, char **argv)
         &"LEA ,IMM ,JMP ,JSR ,BZ  ,BNZ ,ENT ,ADJ ,LEV ,LI  ,LC  ,SI  ,SC  ,PSH ,"
          "OR  ,XOR ,AND ,EQ  ,NE  ,LT  ,GT  ,LE  ,GE  ,SHL ,SHR ,ADD ,SUB ,MUL ,DIV ,MOD ,"
          "OPEN,READ,CLOS,PRTF,MALC,FREE,MSET,MCMP,EXIT,"[i * 5]);
-      if (i <= ADJ) printf(" %d\n", *pc); else printf("\n");
+      if (i <= ADJ) printf(" %d\r\n", *pc); else printf("\r\n");
     }
     if      (i == LEA) a = (int)(bp + *pc++);                             // load local address
     else if (i == IMM) a = *pc++;                                         // load global address or immediate
@@ -514,15 +517,15 @@ int main(int argc, char **argv)
     else if (i == DIV) a = *sp++ /  a;
     else if (i == MOD) a = *sp++ %  a;
 
-    else if (i == OPEN) a = open((char *)sp[1], *sp);
-    else if (i == READ) a = read(sp[2], (char *)sp[1], *sp);
-    else if (i == CLOS) a = close(*sp);
+    else if (i == OPEN) a = fopen((char *)sp[1], *sp);
+    else if (i == READ) a = fread((char *)sp[1], 1, *sp, sp[2]);
+    else if (i == CLOS) a = fclose(*sp);
     else if (i == PRTF) { t = sp + pc[1]; a = printf((char *)t[-1], t[-2], t[-3], t[-4], t[-5], t[-6]); }
     else if (i == MALC) a = (int)malloc(*sp);
     else if (i == FREE) free((void *)*sp);
     else if (i == MSET) a = (int)memset((char *)sp[2], sp[1], *sp);
     else if (i == MCMP) a = memcmp((char *)sp[2], (char *)sp[1], *sp);
-    else if (i == EXIT) { printf("exit(%d) cycle = %d\n", *sp, cycle); return *sp; }
-    else { printf("unknown instruction = %d! cycle = %d\n", i, cycle); return -1; }
+    else if (i == EXIT) { printf("exit(%d) cycle = %d\r\n", *sp, cycle); return *sp; }
+    else { printf("unknown instruction = %d! cycle = %d\r\n", i, cycle); return -1; }
   }
 }
